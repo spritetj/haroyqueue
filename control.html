@@ -60,6 +60,20 @@
   .number-selection label {
     font-size: 1em;
   }
+  .number-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .number-btn {
+    background: #9C1B1B;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 1.2em;
+    padding: 5px 10px;
+    cursor: pointer;
+  }
   .number-display {
     font-weight: bold;
   }
@@ -174,7 +188,6 @@
     cursor: pointer;
     color: #fff;
   }
-  /* Range slider styling for mobile-friendliness */
   input[type=range] {
     width: 100%;
   }
@@ -184,7 +197,7 @@
 
 <h1>HaRoy Queue Control</h1>
 <div class="instructions">
-  - For each panel (A or B), choose a queue number (1-999) using the slider below, select an estimate time (1m,3m,5m,10m,15m,20m), and press "Add" to add the order to Preparing.<br>
+  - For each panel (A or B), choose a queue number (1-999) using the slider or the +/- buttons, select an estimate time (1m,3m,5m,10m,15m,20m), and press "Add" to add the order to Preparing.<br>
   - Press "✔ Ready" to move an order to Ready, "🗑 Remove" to delete it, or "↩ Back" to return it to Preparing.<br>
   - "Clear All" removes all orders from that section.<br>
   <strong>Note:</strong> Only the last 50 orders are kept in each list.
@@ -194,8 +207,12 @@
   <div class="input-panel" id="panel-A">
     <h2>Cashier A</h2>
     <div class="number-selection">
-      <label for="a-number">Queue Number:</label>
-      <input type="range" min="1" max="999" value="1" id="a-number">
+      <label>Queue Number:</label>
+      <div class="number-controls">
+        <button class="number-btn" id="a-decrement">-</button>
+        <input type="range" min="1" max="999" value="1" id="a-number">
+        <button class="number-btn" id="a-increment">+</button>
+      </div>
       <span class="number-display" id="a-number-display">1</span>
     </div>
     <div class="estimate-selection">
@@ -215,8 +232,12 @@
   <div class="input-panel" id="panel-B">
     <h2>Cashier B</h2>
     <div class="number-selection">
-      <label for="b-number">Queue Number:</label>
-      <input type="range" min="1" max="999" value="1" id="b-number">
+      <label>Queue Number:</label>
+      <div class="number-controls">
+        <button class="number-btn" id="b-decrement">-</button>
+        <input type="range" min="1" max="999" value="1" id="b-number">
+        <button class="number-btn" id="b-increment">+</button>
+      </div>
       <span class="number-display" id="b-number-display">1</span>
     </div>
     <div class="estimate-selection">
@@ -260,23 +281,61 @@
   // A panel elements
   const aNumberInput = document.getElementById('a-number');
   const aNumberDisplay = document.getElementById('a-number-display');
+  const aDecrement = document.getElementById('a-decrement');
+  const aIncrement = document.getElementById('a-increment');
   const aEstimateButtons = document.getElementById('a-estimate-buttons');
   const addAOrderBtn = document.getElementById('add-a-order');
+  let aSelectedEstimate = null;
 
   // B panel elements
   const bNumberInput = document.getElementById('b-number');
   const bNumberDisplay = document.getElementById('b-number-display');
+  const bDecrement = document.getElementById('b-decrement');
+  const bIncrement = document.getElementById('b-increment');
   const bEstimateButtons = document.getElementById('b-estimate-buttons');
   const addBOrderBtn = document.getElementById('add-b-order');
-
-  let aSelectedEstimate = null;
   let bSelectedEstimate = null;
 
   aNumberInput.addEventListener('input', () => {
     aNumberDisplay.textContent = aNumberInput.value;
   });
+
   bNumberInput.addEventListener('input', () => {
     bNumberDisplay.textContent = bNumberInput.value;
+  });
+
+  aDecrement.addEventListener('click', () => {
+    let val = parseInt(aNumberInput.value,10);
+    if (val > 1) {
+      val--;
+      aNumberInput.value = val;
+      aNumberDisplay.textContent = val;
+    }
+  });
+  aIncrement.addEventListener('click', () => {
+    let val = parseInt(aNumberInput.value,10);
+    if (val < 999) {
+      val++;
+      aNumberInput.value = val;
+      aNumberDisplay.textContent = val;
+    }
+  });
+
+  bDecrement.addEventListener('click', () => {
+    let val = parseInt(bNumberInput.value,10);
+    if (val > 1) {
+      val--;
+      bNumberInput.value = val;
+      bNumberDisplay.textContent = val;
+    }
+  });
+  bIncrement.addEventListener('click', () => {
+    let val = parseInt(bNumberInput.value,10);
+    if (val < 999) {
+      val++;
+      bNumberInput.value = val;
+      bNumberDisplay.textContent = val;
+    }
   });
 
   aEstimateButtons.addEventListener('click', (e) => {
@@ -395,7 +454,6 @@
     saveQueues();
     renderQueues();
     // Do not reset the number or estimate
-    // The user can change if they want, no reset needed
   }
 
   function addBOrder() {

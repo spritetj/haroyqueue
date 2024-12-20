@@ -28,7 +28,7 @@
   }
   h1 {
     margin: 0;
-    font-size: 4em; /* Increased size */
+    font-size: 4em; /* Large heading */
     text-align: center;
     margin-bottom: 20px;
   }
@@ -37,34 +37,34 @@
     background: #fff3c2;
     border-radius: 20px;
     border: 4px solid #9C1B1B;
-    padding: 20px;
+    padding: 10px; /* slightly less padding to fit more items */
     overflow-y: auto;
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
+    grid-template-columns: repeat(4, 1fr); /* 4 columns now */
+    gap: 10px; /* slightly smaller gap */
   }
   .order-item {
     background: #ffffff;
     border: 3px solid #9C1B1B;
     border-radius: 10px;
-    font-size: 2em; /* Bigger font */
+    font-size: 2em; /* Large base font size */
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: 20px; /* enough padding but not wasteful */
+    padding: 15px; 
     text-align: center;
-    line-height: 1.2em;
+    line-height: 1.1em; /* Slightly tighter line-height */
   }
   .order-item.ready {
     background: #C8E6C9;
   }
   .order-id {
     font-weight: bold;
-    margin-bottom: 10px;
-    font-size: 1.2em; /* even bigger for ID */
+    font-size: 1.4em; /* Make the queue number even larger than base font */
+    margin-bottom: 5px;
   }
   .order-est {
-    font-size: 0.9em;
+    font-size: 0.8em; /* Smaller font for estimate line */
     color: #333;
   }
   .list-container::-webkit-scrollbar {
@@ -110,7 +110,7 @@
 
       const estSpan = document.createElement('div');
       estSpan.className = 'order-est';
-      estSpan.textContent = `Est.Time ${order.estimate} min`;
+      estSpan.textContent = `Est. ${order.estimate} mins`; // Changed text
 
       div.appendChild(idSpan);
       div.appendChild(estSpan);
