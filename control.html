@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Order Control</title>
+<link href="https://fonts.googleapis.com/css?family=Sriracha&display=swap" rel="stylesheet">
+<style>
+  body {
+    font-family: 'Sriracha', cursive;
+    background: #FFD44E; 
+    color: #9C1B1B;
+    margin: 20px;
+    padding: 20px;
+  }
+  h1 {
+    margin-top: 0;
+    font-size: 3em;
+    text-align: center;
+  }
+  .instructions {
+    font-size: 1.5em;
+    margin-bottom: 30px;
+    text-align: center;
+    line-height: 1.4em;
+  }
+  .inputs-container {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+  }
+  .cashier-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .cashier-section h2 {
+    font-size: 1.8em;
+    margin-bottom: 10px;
+  }
+  .cashier-section input {
+    font-size: 1.2em;
+    padding: 5px;
+    border: 3px solid #9C1B1B;
+    border-radius: 10px;
+    width: 120px;
+    text-align: center;
+    margin-bottom: 10px;
+  }
+  button {
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 1.2em;
+    padding: 5px 15px;
+    color: #fff;
+  }
+  .add-btn {
+    background: #9C1B1B; 
+  }
+  .ready-btn {
+    background: #4CAF50;
+    font-size: 0.9em; 
+  }
+  .remove-btn {
+    background: #D32F2F;
+    font-size: 0.9em; 
+  }
+  .clear-btn {
+    background: #FF9800;
+    margin-top: 10px;
+  }
+  .sections {
+    display: flex;
+    gap: 40px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .section {
+    background: #fff3c2;
+    border: 4px solid #9C1B1B;
+    border-radius: 20px;
+    padding: 20px;
+    flex: 1;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+  }
+  .section h3 {
+    margin-top: 0;
+    text-align: center;
+    font-size: 2em;
+  }
+  .order-list {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 10px;
+  }
+  .order-item {
+    background: #ffffff;
+    padding: 10px;
+    margin-bottom: 5px;
+    border: 2px solid #9C1B1B;
+    border-radius: 10px;
+    font-size: 1.5em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  .order-buttons {
+    display: flex;
+    gap: 5px;
+  }
+  .order-list::-webkit-scrollbar {
+    width: 6px;
+  }
+  .order-list::-webkit-scrollbar-track {
+    background: #fff3c2;
+  }
+  .order-list::-webkit-scrollbar-thumb {
+    background: #9C1B1B;
+    border-radius: 3px;
+  }
+</style>
+</head>
+<body>
+
+<h1>HaRoy Queue Control</h1>
+<div class="instructions">
+  - Enter numbers for each cashier’s order below (A or B).<br>
+  - Press "Add A-Order" or "Add B-Order" to add an order to "Preparing".<br>
+  - Press "✔ Ready" to move an order to "Ready". Press "🗑 Remove" to delete it.<br>
+  - "Clear All" removes all orders from that section.<br>
+  <strong>Note:</strong> Only the last 50 orders are kept in each list.
+</div>
+
+<div class="inputs-container">
+  <div class="cashier-section">
+    <h2>Cashier A</h2>
+    <input type="text" id="cashierA-input" placeholder="Numbers only"/>
+    <button class="add-btn" id="cashierA-add">Add A-Order</button>
+  </div>
+  <div class="cashier-section">
+    <h2>Cashier B</h2>
+    <input type="text" id="cashierB-input" placeholder="Numbers only"/>
+    <button class="add-btn" id="cashierB-add">Add B-Order</button>
+  </div>
+</div>
+
+<div class="sections">
+  <div class="section">
+    <h3 id="prep-title">Preparing</h3>
+    <div class="order-list" id="prep-list"></div>
+    <button class="clear-btn" id="clear-prep">Clear All Preparing</button>
+  </div>
+
+  <div class="section">
+    <h3 id="ready-title">Ready</h3>
+    <div class="order-list" id="ready-list"></div>
+    <button class="clear-btn" id="clear-ready">Clear All Ready</button>
+  </div>
+</div>
+
+<script>
+  let preparationQueue = JSON.parse(localStorage.getItem('preparationQueue') || '[]');
+  let readyQueue = JSON.parse(localStorage.getItem('readyQueue') || '[]');
+
+  const prepList = document.getElementById('prep-list');
+  const readyList = document.getElementById('ready-list');
+  const cashierAInput = document.getElementById('cashierA-input');
+  const cashierBInput = document.getElementById('cashierB-input');
+  const cashierAAdd = document.getElementById('cashierA-add');
+  const cashierBAdd = document.getElementById('cashierB-add');
+
+  const clearPrepBtn = document.getElementById('clear-prep');
+  const clearReadyBtn = document.getElementById('clear-ready');
+
+  const prepTitle = document.getElementById('prep-title');
+  const readyTitle = document.getElementById('ready-title');
+
+  function saveQueues() {
+    localStorage.setItem('preparationQueue', JSON.stringify(preparationQueue));
+    localStorage.setItem('readyQueue', JSON.stringify(readyQueue));
+  }
+
+  function enforceLimit(queue) {
+    // Ensure only last 50 are kept
+    while (queue.length > 50) {
+      queue.shift();
+    }
+  }
+
+  function renderQueues() {
+    prepList.innerHTML = '';
+    readyList.innerHTML = '';
+
+    // Update the titles with the count
+    prepTitle.textContent = `Preparing (${preparationQueue.length}/50)`;
+    readyTitle.textContent = `Ready (${readyQueue.length}/50)`;
+
+    preparationQueue.forEach((order, index) => {
+      const div = document.createElement('div');
+      div.className = 'order-item';
+      const span = document.createElement('span');
+      span.textContent = order;
+
+      const buttonsDiv = document.createElement('div');
+      buttonsDiv.className = 'order-buttons';
+
+      const readyBtn = document.createElement('button');
+      readyBtn.innerHTML = '✔ Ready';
+      readyBtn.className = 'ready-btn';
+      readyBtn.addEventListener('click', () => markReady(index));
+
+      const removeBtn = document.createElement('button');
+      removeBtn.innerHTML = '🗑 Remove';
+      removeBtn.className = 'remove-btn';
+      removeBtn.addEventListener('click', () => removeOrderFromPreparation(index));
+
+      buttonsDiv.appendChild(readyBtn);
+      buttonsDiv.appendChild(removeBtn);
+      div.appendChild(span);
+      div.appendChild(buttonsDiv);
+      prepList.appendChild(div);
+    });
+
+    readyQueue.forEach((order, index) => {
+      const div = document.createElement('div');
+      div.className = 'order-item';
+      const span = document.createElement('span');
+      span.textContent = order;
+
+      const buttonsDiv = document.createElement('div');
+      buttonsDiv.className = 'order-buttons';
+
+      const removeBtn = document.createElement('button');
+      removeBtn.innerHTML = '🗑 Remove';
+      removeBtn.className = 'remove-btn';
+      removeBtn.addEventListener('click', () => removeOrderFromReady(index));
+
+      buttonsDiv.appendChild(removeBtn);
+      div.appendChild(span);
+      div.appendChild(buttonsDiv);
+      readyList.appendChild(div);
+    });
+  }
+
+  function addAOrder() {
+    const number = cashierAInput.value.trim().replace(/\D/g,'');
+    if (number) {
+      const orderNumber = 'A' + number;
+      preparationQueue.push(orderNumber);
+      enforceLimit(preparationQueue);
+      cashierAInput.value = '';
+      saveQueues();
+      renderQueues();
+    }
+  }
+
+  function addBOrder() {
+    const number = cashierBInput.value.trim().replace(/\D/g,'');
+    if (number) {
+      const orderNumber = 'B' + number;
+      preparationQueue.push(orderNumber);
+      enforceLimit(preparationQueue);
+      cashierBInput.value = '';
+      saveQueues();
+      renderQueues();
+    }
+  }
+
+  function markReady(index) {
+    const order = preparationQueue[index];
+    preparationQueue.splice(index, 1);
+    readyQueue.push(order);
+    enforceLimit(readyQueue);
+    saveQueues();
+    renderQueues();
+  }
+
+  function removeOrderFromPreparation(index) {
+    preparationQueue.splice(index, 1);
+    saveQueues();
+    renderQueues();
+  }
+
+  function removeOrderFromReady(index) {
+    readyQueue.splice(index, 1);
+    saveQueues();
+    renderQueues();
+  }
+
+  function clearAllPreparation() {
+    preparationQueue = [];
+    saveQueues();
+    renderQueues();
+  }
+
+  function clearAllReady() {
+    readyQueue = [];
+    saveQueues();
+    renderQueues();
+  }
+
+  cashierAAdd.addEventListener('click', addAOrder);
+  cashierBAdd.addEventListener('click', addBOrder);
+  cashierAInput.addEventListener('keyup', (e) => {
+    if (e.key === 'Enter') addAOrder();
+  });
+  cashierBInput.addEventListener('keyup', (e) => {
+    if (e.key === 'Enter') addBOrder();
+  });
+
+  clearPrepBtn.addEventListener('click', clearAllPreparation);
+  clearReadyBtn.addEventListener('click', clearAllReady);
+
+  renderQueues();
+</script>
+</body>
+</html>
