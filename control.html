@@ -49,6 +49,9 @@
     text-align: center;
     margin-bottom: 10px;
   }
+  .estimate-input {
+    width: 60px;
+  }
   button {
     border: none;
     border-radius: 10px;
@@ -67,6 +70,10 @@
   .remove-btn {
     background: #D32F2F;
     font-size: 0.9em; 
+  }
+  .back-btn {
+    background: #9C1B1B;
+    font-size: 0.9em;
   }
   .clear-btn {
     background: #FF9800;
@@ -106,13 +113,18 @@
     border-radius: 10px;
     font-size: 1.5em;
     display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .order-top {
+    display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 10px;
   }
   .order-buttons {
     display: flex;
     gap: 5px;
+    justify-content: flex-end;
   }
   .order-list::-webkit-scrollbar {
     width: 6px;
@@ -124,15 +136,19 @@
     background: #9C1B1B;
     border-radius: 3px;
   }
+  .detail-line {
+    font-size: 0.9em;
+    color: #333;
+  }
 </style>
 </head>
 <body>
 
 <h1>HaRoy Queue Control</h1>
 <div class="instructions">
-  - Enter numbers for each cashier’s order below (A or B).<br>
+  - Enter numbers for each cashier’s order below (A or B), and an estimate time in minutes.<br>
   - Press "Add A-Order" or "Add B-Order" to add an order to "Preparing".<br>
-  - Press "✔ Ready" to move an order to "Ready". Press "🗑 Remove" to delete it.<br>
+  - Press "✔ Ready" to move an order to "Ready" (countdown starts), "🗑 Remove" to delete it, or "↩ Back" to move from Ready back to Preparing.<br>
   - "Clear All" removes all orders from that section.<br>
   <strong>Note:</strong> Only the last 50 orders are kept in each list.
 </div>
@@ -141,30 +157,33 @@
   <div class="cashier-section">
     <h2>Cashier A</h2>
     <input type="text" id="cashierA-input" placeholder="Numbers only"/>
+    <input type="number" id="cashierA-estimate" class="estimate-input" placeholder="Min" min="1"/>
     <button class="add-btn" id="cashierA-add">Add A-Order</button>
   </div>
   <div class="cashier-section">
     <h2>Cashier B</h2>
     <input type="text" id="cashierB-input" placeholder="Numbers only"/>
+    <input type="number" id="cashierB-estimate" class="estimate-input" placeholder="Min" min="1"/>
     <button class="add-btn" id="cashierB-add">Add B-Order</button>
   </div>
 </div>
 
 <div class="sections">
   <div class="section">
-    <h3 id="prep-title">Preparing</h3>
+    <h3 id="prep-title">Preparing (0/50)</h3>
     <div class="order-list" id="prep-list"></div>
     <button class="clear-btn" id="clear-prep">Clear All Preparing</button>
   </div>
 
   <div class="section">
-    <h3 id="ready-title">Ready</h3>
+    <h3 id="ready-title">Ready (0/50)</h3>
     <div class="order-list" id="ready-list"></div>
     <button class="clear-btn" id="clear-ready">Clear All Ready</button>
   </div>
 </div>
 
 <script>
+  // Order structure: {id: 'A123', estimate: 5 (minutes), movedToReadyAt: number or null}
   let preparationQueue = JSON.parse(localStorage.getItem('preparationQueue') || '[]');
   let readyQueue = JSON.parse(localStorage.getItem('readyQueue') || '[]');
 
@@ -172,6 +191,8 @@
   const readyList = document.getElementById('ready-list');
   const cashierAInput = document.getElementById('cashierA-input');
   const cashierBInput = document.getElementById('cashierB-input');
+  const cashierAEstimate = document.getElementById('cashierA-estimate');
+  const cashierBEstimate = document.getElementById('cashierB-estimate');
   const cashierAAdd = document.getElementById('cashierA-add');
   const cashierBAdd = document.getElementById('cashierB-add');
 
@@ -187,7 +208,6 @@
   }
 
   function enforceLimit(queue) {
-    // Ensure only last 50 are kept
     while (queue.length > 50) {
       queue.shift();
     }
@@ -197,15 +217,17 @@
     prepList.innerHTML = '';
     readyList.innerHTML = '';
 
-    // Update the titles with the count
     prepTitle.textContent = `Preparing (${preparationQueue.length}/50)`;
     readyTitle.textContent = `Ready (${readyQueue.length}/50)`;
 
     preparationQueue.forEach((order, index) => {
       const div = document.createElement('div');
       div.className = 'order-item';
+
+      const topLine = document.createElement('div');
+      topLine.className = 'order-top';
       const span = document.createElement('span');
-      span.textContent = order;
+      span.textContent = order.id;
 
       const buttonsDiv = document.createElement('div');
       buttonsDiv.className = 'order-buttons';
@@ -222,39 +244,67 @@
 
       buttonsDiv.appendChild(readyBtn);
       buttonsDiv.appendChild(removeBtn);
-      div.appendChild(span);
-      div.appendChild(buttonsDiv);
+
+      topLine.appendChild(span);
+      topLine.appendChild(buttonsDiv);
+
+      const detail = document.createElement('div');
+      detail.className = 'detail-line';
+      detail.textContent = `Estimate: ${order.estimate} min`;
+
+      div.appendChild(topLine);
+      div.appendChild(detail);
       prepList.appendChild(div);
     });
 
     readyQueue.forEach((order, index) => {
       const div = document.createElement('div');
       div.className = 'order-item';
+
+      const topLine = document.createElement('div');
+      topLine.className = 'order-top';
       const span = document.createElement('span');
-      span.textContent = order;
+      span.textContent = order.id;
 
       const buttonsDiv = document.createElement('div');
       buttonsDiv.className = 'order-buttons';
+
+      const backBtn = document.createElement('button');
+      backBtn.innerHTML = '↩ Back';
+      backBtn.className = 'back-btn';
+      backBtn.addEventListener('click', () => moveBackToPreparation(index));
 
       const removeBtn = document.createElement('button');
       removeBtn.innerHTML = '🗑 Remove';
       removeBtn.className = 'remove-btn';
       removeBtn.addEventListener('click', () => removeOrderFromReady(index));
 
+      buttonsDiv.appendChild(backBtn);
       buttonsDiv.appendChild(removeBtn);
-      div.appendChild(span);
-      div.appendChild(buttonsDiv);
+
+      topLine.appendChild(span);
+      topLine.appendChild(buttonsDiv);
+
+      // On control side, just show estimate again (no countdown here)
+      const detail = document.createElement('div');
+      detail.className = 'detail-line';
+      detail.textContent = `Estimate: ${order.estimate} min (Countdown runs on display)`;
+
+      div.appendChild(topLine);
+      div.appendChild(detail);
       readyList.appendChild(div);
     });
   }
 
   function addAOrder() {
     const number = cashierAInput.value.trim().replace(/\D/g,'');
-    if (number) {
-      const orderNumber = 'A' + number;
-      preparationQueue.push(orderNumber);
+    const est = parseInt(cashierAEstimate.value.trim(),10);
+    if (number && est > 0) {
+      const order = {id: 'A' + number, estimate: est, movedToReadyAt: null};
+      preparationQueue.push(order);
       enforceLimit(preparationQueue);
       cashierAInput.value = '';
+      cashierAEstimate.value = '';
       saveQueues();
       renderQueues();
     }
@@ -262,11 +312,13 @@
 
   function addBOrder() {
     const number = cashierBInput.value.trim().replace(/\D/g,'');
-    if (number) {
-      const orderNumber = 'B' + number;
-      preparationQueue.push(orderNumber);
+    const est = parseInt(cashierBEstimate.value.trim(),10);
+    if (number && est > 0) {
+      const order = {id: 'B' + number, estimate: est, movedToReadyAt: null};
+      preparationQueue.push(order);
       enforceLimit(preparationQueue);
       cashierBInput.value = '';
+      cashierBEstimate.value = '';
       saveQueues();
       renderQueues();
     }
@@ -275,6 +327,8 @@
   function markReady(index) {
     const order = preparationQueue[index];
     preparationQueue.splice(index, 1);
+    // Start countdown by setting movedToReadyAt
+    order.movedToReadyAt = Date.now();
     readyQueue.push(order);
     enforceLimit(readyQueue);
     saveQueues();
@@ -289,6 +343,16 @@
 
   function removeOrderFromReady(index) {
     readyQueue.splice(index, 1);
+    saveQueues();
+    renderQueues();
+  }
+
+  function moveBackToPreparation(index) {
+    const order = readyQueue[index];
+    readyQueue.splice(index, 1);
+    order.movedToReadyAt = null; // reset countdown since going back
+    preparationQueue.push(order);
+    enforceLimit(preparationQueue);
     saveQueues();
     renderQueues();
   }

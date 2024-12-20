@@ -51,6 +51,16 @@
     border: 3px solid #9C1B1B;
     text-align: center;
     word-wrap: break-word;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .ready-item {
+    background: #C8E6C9; /* Light green background for ready */
+  }
+  .detail-line {
+    font-size: 0.9em;
+    color: #333;
   }
   .list-container::-webkit-scrollbar {
     display: none;
@@ -68,17 +78,21 @@
   </div>
 
 <script>
+  function loadQueues() {
+    const prepData = JSON.parse(localStorage.getItem('preparationQueue') || '[]');
+    const readyData = JSON.parse(localStorage.getItem('readyQueue') || '[]');
+    return {prepData, readyData};
+  }
+
   const prepList = document.getElementById('prep-list');
   const readyList = document.getElementById('ready-list');
 
   function render() {
-    const prepData = JSON.parse(localStorage.getItem('preparationQueue') || '[]');
-    const readyData = JSON.parse(localStorage.getItem('readyQueue') || '[]');
+    const {prepData, readyData} = loadQueues();
 
-    // Show only last 20 for both
-    const displayedPrep = prepData.slice(-20);
-    // For ready, reverse to show newest first
-    const displayedReady = readyData.slice(-20).reverse();
+    // Show last 15 in descending order for both
+    const displayedPrep = prepData.slice(-15).reverse();
+    const displayedReady = readyData.slice(-15).reverse();
 
     prepList.innerHTML = '';
     readyList.innerHTML = '';
@@ -86,20 +100,38 @@
     displayedPrep.forEach(order => {
       const div = document.createElement('div');
       div.className = 'order-item';
-      div.textContent = order;
+      div.textContent = order.id;
+      const detail = document.createElement('div');
+      detail.className = 'detail-line';
+      detail.textContent = `Estimate: ${order.estimate} min`;
+      div.appendChild(detail);
       prepList.appendChild(div);
     });
 
     displayedReady.forEach(order => {
       const div = document.createElement('div');
-      div.className = 'order-item';
-      div.textContent = order;
+      div.className = 'order-item ready-item'; // green background
+      div.textContent = order.id;
+
+      const detail = document.createElement('div');
+      detail.className = 'detail-line';
+      // Calculate countdown
+      const now = Date.now();
+      let remainingMs = (order.estimate * 60 * 1000) - (now - order.movedToReadyAt);
+      if (remainingMs < 0) remainingMs = 0;
+      const remainingMin = Math.floor(remainingMs / 60000);
+      const remainingSec = Math.floor((remainingMs % 60000)/1000);
+      detail.textContent = `Time Left: ${remainingMin}m ${remainingSec}s`;
+      div.appendChild(detail);
+
+      div.setAttribute('data-id', order.id); // store ID for reference if needed
       readyList.appendChild(div);
     });
   }
 
+  // Update countdown every second
+  setInterval(render, 1000);
   render();
-  setInterval(render, 2000);
 </script>
 </body>
 </html>
