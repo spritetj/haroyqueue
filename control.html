@@ -20,6 +20,7 @@
     margin-top: 0;
     font-size: 2em;
     text-align: left;
+    margin-bottom: 10px;
   }
   .instructions {
     font-size: 1.2em;
@@ -30,34 +31,43 @@
   .top-controls {
     display: flex;
     flex-direction: row;
-    gap: 20px;
+    gap: 40px;
     align-items: flex-start;
     margin-bottom: 30px;
+    flex-wrap: wrap;
   }
   .input-panel {
     background: #fff3c2;
     border: 4px solid #9C1B1B;
     border-radius: 20px;
-    padding: 10px;
+    padding: 20px;
     display: flex;
     flex-direction: column;
     gap: 10px;
+    width: 200px;
   }
   .input-panel h2 {
     margin:0;
     font-size: 1.5em;
     text-align: left;
   }
-  .prefix-selection, .number-selection, .estimate-selection {
+  .number-selection,
+  .estimate-selection {
     display: flex;
     flex-direction: column;
     gap: 10px;
   }
-  .prefix-buttons, .estimate-buttons {
+  .number-selection label {
+    font-size: 1em;
+  }
+  .number-display {
+    font-weight: bold;
+  }
+  .estimate-buttons {
     display: flex;
+    flex-wrap: wrap;
     gap: 5px;
   }
-  .prefix-buttons button, 
   .estimate-buttons button {
     background: #9C1B1B;
     color: #fff;
@@ -67,32 +77,8 @@
     padding: 5px 10px;
     cursor: pointer;
   }
-  .number-selection {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .number-btn {
-    background: #9C1B1B;
-    color: #fff;
-    border: none;
-    border-radius: 10px;
-    font-size: 1.2em;
-    padding: 5px 10px;
-    cursor: pointer;
-  }
-  .number-display {
-    background: #ffffff;
-    border: 3px solid #9C1B1B;
-    border-radius: 10px;
-    font-size: 1.5em;
-    padding: 10px;
-    min-width: 60px;
-    text-align: center;
-  }
-  .add-buttons {
-    display: flex;
-    gap: 10px;
+  .estimate-buttons button.selected {
+    background: #4CAF50;
   }
   .add-btn {
     background: #9C1B1B;
@@ -102,6 +88,7 @@
     font-size: 1.2em;
     padding: 5px 15px;
     cursor: pointer;
+    text-align: center;
   }
   .sections {
     display: flex;
@@ -187,39 +174,33 @@
     cursor: pointer;
     color: #fff;
   }
+  /* Range slider styling for mobile-friendliness */
+  input[type=range] {
+    width: 100%;
+  }
 </style>
 </head>
 <body>
 
 <h1>HaRoy Queue Control</h1>
 <div class="instructions">
-  - Select prefix (A or B), choose a queue number (1-999) via Next/Prev buttons, and select an estimate time (1m,3m,5m,10m,15m,20m).<br>
-  - Press "Add A-Order" or "Add B-Order" to add the order to Preparing.<br>
+  - For each panel (A or B), choose a queue number (1-999) using the slider below, select an estimate time (1m,3m,5m,10m,15m,20m), and press "Add" to add the order to Preparing.<br>
   - Press "✔ Ready" to move an order to Ready, "🗑 Remove" to delete it, or "↩ Back" to return it to Preparing.<br>
   - "Clear All" removes all orders from that section.<br>
   <strong>Note:</strong> Only the last 50 orders are kept in each list.
 </div>
 
 <div class="top-controls">
-  <div class="input-panel">
-    <h2>Order Input</h2>
-    <div class="prefix-selection">
-      <div>Prefix:</div>
-      <div class="prefix-buttons" id="prefix-buttons">
-        <button data-prefix="A">A</button>
-        <button data-prefix="B">B</button>
-      </div>
-    </div>
-
+  <div class="input-panel" id="panel-A">
+    <h2>Cashier A</h2>
     <div class="number-selection">
-      <button class="number-btn" id="prev-number">◀</button>
-      <div class="number-display" id="number-display">1</div>
-      <button class="number-btn" id="next-number">▶</button>
+      <label for="a-number">Queue Number:</label>
+      <input type="range" min="1" max="999" value="1" id="a-number">
+      <span class="number-display" id="a-number-display">1</span>
     </div>
-
     <div class="estimate-selection">
       <div>Estimate Time:</div>
-      <div class="estimate-buttons" id="estimate-buttons">
+      <div class="estimate-buttons" id="a-estimate-buttons">
         <button data-est="1">1m</button>
         <button data-est="3">3m</button>
         <button data-est="5">5m</button>
@@ -228,10 +209,28 @@
         <button data-est="20">20m</button>
       </div>
     </div>
+    <button class="add-btn" id="add-a-order">Add A-Order</button>
+  </div>
 
-    <div class="add-buttons">
-      <button class="add-btn" id="add-order">Add Order</button>
+  <div class="input-panel" id="panel-B">
+    <h2>Cashier B</h2>
+    <div class="number-selection">
+      <label for="b-number">Queue Number:</label>
+      <input type="range" min="1" max="999" value="1" id="b-number">
+      <span class="number-display" id="b-number-display">1</span>
     </div>
+    <div class="estimate-selection">
+      <div>Estimate Time:</div>
+      <div class="estimate-buttons" id="b-estimate-buttons">
+        <button data-est="1">1m</button>
+        <button data-est="3">3m</button>
+        <button data-est="5">5m</button>
+        <button data-est="10">10m</button>
+        <button data-est="15">15m</button>
+        <button data-est="20">20m</button>
+      </div>
+    </div>
+    <button class="add-btn" id="add-b-order">Add B-Order</button>
   </div>
 </div>
 
@@ -258,43 +257,42 @@
   const prepTitle = document.getElementById('prep-title');
   const readyTitle = document.getElementById('ready-title');
 
-  const prefixButtons = document.getElementById('prefix-buttons');
-  const estimateButtons = document.getElementById('estimate-buttons');
-  const addOrderBtn = document.getElementById('add-order');
+  // A panel elements
+  const aNumberInput = document.getElementById('a-number');
+  const aNumberDisplay = document.getElementById('a-number-display');
+  const aEstimateButtons = document.getElementById('a-estimate-buttons');
+  const addAOrderBtn = document.getElementById('add-a-order');
 
-  const prevNumberBtn = document.getElementById('prev-number');
-  const nextNumberBtn = document.getElementById('next-number');
-  const numberDisplay = document.getElementById('number-display');
+  // B panel elements
+  const bNumberInput = document.getElementById('b-number');
+  const bNumberDisplay = document.getElementById('b-number-display');
+  const bEstimateButtons = document.getElementById('b-estimate-buttons');
+  const addBOrderBtn = document.getElementById('add-b-order');
 
-  let selectedPrefix = null;
-  let selectedNumber = 1;
-  let selectedEstimate = null;
+  let aSelectedEstimate = null;
+  let bSelectedEstimate = null;
 
-  prefixButtons.addEventListener('click', (e) => {
-    if (e.target.dataset.prefix) {
-      selectedPrefix = e.target.dataset.prefix;
-      // Highlight selected
-      Array.from(prefixButtons.children).forEach(btn => btn.style.background='#9C1B1B');
-      e.target.style.background='#4CAF50';
-    }
+  aNumberInput.addEventListener('input', () => {
+    aNumberDisplay.textContent = aNumberInput.value;
+  });
+  bNumberInput.addEventListener('input', () => {
+    bNumberDisplay.textContent = bNumberInput.value;
   });
 
-  estimateButtons.addEventListener('click', (e) => {
+  aEstimateButtons.addEventListener('click', (e) => {
     if (e.target.dataset.est) {
-      selectedEstimate = parseInt(e.target.dataset.est,10);
-      // Highlight selected
-      Array.from(estimateButtons.children).forEach(btn => btn.style.background='#9C1B1B');
-      e.target.style.background='#4CAF50';
+      aSelectedEstimate = parseInt(e.target.dataset.est,10);
+      Array.from(aEstimateButtons.children).forEach(btn => btn.classList.remove('selected'));
+      e.target.classList.add('selected');
     }
   });
 
-  prevNumberBtn.addEventListener('click', () => {
-    if (selectedNumber > 1) selectedNumber--;
-    numberDisplay.textContent = selectedNumber;
-  });
-  nextNumberBtn.addEventListener('click', () => {
-    if (selectedNumber < 999) selectedNumber++;
-    numberDisplay.textContent = selectedNumber;
+  bEstimateButtons.addEventListener('click', (e) => {
+    if (e.target.dataset.est) {
+      bSelectedEstimate = parseInt(e.target.dataset.est,10);
+      Array.from(bEstimateButtons.children).forEach(btn => btn.classList.remove('selected'));
+      e.target.classList.add('selected');
+    }
   });
 
   function saveQueues() {
@@ -385,24 +383,37 @@
     });
   }
 
-  function addOrder() {
-    if (!selectedPrefix || !selectedNumber || !selectedEstimate) {
-      alert('Please select prefix (A or B), a number, and an estimate time before adding.');
+  function addAOrder() {
+    const number = parseInt(aNumberInput.value,10);
+    if (!number || !aSelectedEstimate) {
+      alert('Please select a number and an estimate time for Cashier A.');
       return;
     }
-    const order = {id: selectedPrefix + selectedNumber, estimate: selectedEstimate, addedAt: Date.now(), movedToReadyAt: null};
+    const order = {id: 'A' + number, estimate: aSelectedEstimate, addedAt: Date.now(), movedToReadyAt: null};
     preparationQueue.push(order);
     enforceLimit(preparationQueue);
-    // Reset selection?
-    selectedPrefix = null;
-    selectedEstimate = null;
-    selectedNumber = 1;
-    numberDisplay.textContent = '1';
-    Array.from(prefixButtons.children).forEach(btn => btn.style.background='#9C1B1B');
-    Array.from(estimateButtons.children).forEach(btn => btn.style.background='#9C1B1B');
     saveQueues();
     renderQueues();
+    // Do not reset the number or estimate
+    // The user can change if they want, no reset needed
   }
+
+  function addBOrder() {
+    const number = parseInt(bNumberInput.value,10);
+    if (!number || !bSelectedEstimate) {
+      alert('Please select a number and an estimate time for Cashier B.');
+      return;
+    }
+    const order = {id: 'B' + number, estimate: bSelectedEstimate, addedAt: Date.now(), movedToReadyAt: null};
+    preparationQueue.push(order);
+    enforceLimit(preparationQueue);
+    saveQueues();
+    renderQueues();
+    // Do not reset the number or estimate
+  }
+
+  addAOrderBtn.addEventListener('click', addAOrder);
+  addBOrderBtn.addEventListener('click', addBOrder);
 
   function markReady(index) {
     const order = preparationQueue[index];
@@ -437,24 +448,18 @@
     renderQueues();
   }
 
-  function clearAllPreparation() {
+  const clearPrepBtn = document.getElementById('clear-prep');
+  const clearReadyBtn = document.getElementById('clear-ready');
+  clearPrepBtn.addEventListener('click', () => {
     preparationQueue = [];
     saveQueues();
     renderQueues();
-  }
-
-  function clearAllReady() {
+  });
+  clearReadyBtn.addEventListener('click', () => {
     readyQueue = [];
     saveQueues();
     renderQueues();
-  }
-
-  addOrderBtn.addEventListener('click', addOrder);
-
-  const clearPrepBtn = document.getElementById('clear-prep');
-  const clearReadyBtn = document.getElementById('clear-ready');
-  clearPrepBtn.addEventListener('click', clearAllPreparation);
-  clearReadyBtn.addEventListener('click', clearAllReady);
+  });
 
   renderQueues();
 </script>
