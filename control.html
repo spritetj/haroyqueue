@@ -49,35 +49,27 @@
     text-align: center;
     margin-bottom: 10px;
   }
-  .estimate-input {
-    width: 60px;
+  .estimate-buttons {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 10px;
   }
-  button {
+  .estimate-buttons button {
+    font-size: 1em;
+    background: #9C1B1B;
+    color: #fff;
     border: none;
+    padding: 5px;
     border-radius: 10px;
     cursor: pointer;
+  }
+  button.add-btn {
+    background: #9C1B1B;
     font-size: 1.2em;
     padding: 5px 15px;
     color: #fff;
-  }
-  .add-btn {
-    background: #9C1B1B; 
-  }
-  .ready-btn {
-    background: #4CAF50;
-    font-size: 0.9em; 
-  }
-  .remove-btn {
-    background: #D32F2F;
-    font-size: 0.9em; 
-  }
-  .back-btn {
-    background: #9C1B1B;
-    font-size: 0.9em;
-  }
-  .clear-btn {
-    background: #FF9800;
-    margin-top: 10px;
+    border-radius: 10px;
+    cursor: pointer;
   }
   .sections {
     display: flex;
@@ -126,19 +118,42 @@
     gap: 5px;
     justify-content: flex-end;
   }
-  .order-list::-webkit-scrollbar {
-    width: 6px;
-  }
-  .order-list::-webkit-scrollbar-track {
-    background: #fff3c2;
-  }
-  .order-list::-webkit-scrollbar-thumb {
-    background: #9C1B1B;
-    border-radius: 3px;
-  }
-  .detail-line {
+  .ready-btn {
+    background: #4CAF50;
     font-size: 0.9em;
-    color: #333;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 5px 8px;
+    cursor: pointer;
+  }
+  .remove-btn {
+    background: #D32F2F;
+    font-size: 0.9em; 
+    border: none;
+    border-radius: 10px;
+    padding: 5px 8px;
+    cursor: pointer;
+    color: #fff;
+  }
+  .back-btn {
+    background: #9C1B1B;
+    font-size: 0.9em;
+    border: none;
+    border-radius: 10px;
+    padding: 5px 8px;
+    cursor: pointer;
+    color: #fff;
+  }
+  .clear-btn {
+    background: #FF9800;
+    margin-top: 10px;
+    border: none;
+    border-radius: 10px;
+    padding: 5px 15px;
+    font-size: 1.2em;
+    cursor: pointer;
+    color: #fff;
   }
 </style>
 </head>
@@ -146,9 +161,9 @@
 
 <h1>HaRoy Queue Control</h1>
 <div class="instructions">
-  - Enter numbers for each cashier’s order below (A or B), and an estimate time in minutes.<br>
-  - Press "Add A-Order" or "Add B-Order" to add an order to "Preparing".<br>
-  - Press "✔ Ready" to move an order to "Ready" (countdown starts), "🗑 Remove" to delete it, or "↩ Back" to move from Ready back to Preparing.<br>
+  - Enter a queue number and select a fixed estimate time (5, 10, 15, or 20 min).<br>
+  - Press "Add A-Order" or "Add B-Order" to add an order to "Preparing" (Display will just show estimate time, no countdown).<br>
+  - Press "✔ Ready" to move an order to "Ready" (green background, no estimate), "🗑 Remove" to delete it, or "↩ Back" to return it to Preparing.<br>
   - "Clear All" removes all orders from that section.<br>
   <strong>Note:</strong> Only the last 50 orders are kept in each list.
 </div>
@@ -157,13 +172,23 @@
   <div class="cashier-section">
     <h2>Cashier A</h2>
     <input type="text" id="cashierA-input" placeholder="Numbers only"/>
-    <input type="number" id="cashierA-estimate" class="estimate-input" placeholder="Min" min="1"/>
+    <div class="estimate-buttons" id="cashierA-estimates">
+      <button data-est="5">5m</button>
+      <button data-est="10">10m</button>
+      <button data-est="15">15m</button>
+      <button data-est="20">20m</button>
+    </div>
     <button class="add-btn" id="cashierA-add">Add A-Order</button>
   </div>
   <div class="cashier-section">
     <h2>Cashier B</h2>
     <input type="text" id="cashierB-input" placeholder="Numbers only"/>
-    <input type="number" id="cashierB-estimate" class="estimate-input" placeholder="Min" min="1"/>
+    <div class="estimate-buttons" id="cashierB-estimates">
+      <button data-est="5">5m</button>
+      <button data-est="10">10m</button>
+      <button data-est="15">15m</button>
+      <button data-est="20">20m</button>
+    </div>
     <button class="add-btn" id="cashierB-add">Add B-Order</button>
   </div>
 </div>
@@ -183,19 +208,40 @@
 </div>
 
 <script>
-  // Order structure: {id: 'A123', estimate: 5 (minutes), movedToReadyAt: number or null}
   let preparationQueue = JSON.parse(localStorage.getItem('preparationQueue') || '[]');
   let readyQueue = JSON.parse(localStorage.getItem('readyQueue') || '[]');
 
   const prepList = document.getElementById('prep-list');
   const readyList = document.getElementById('ready-list');
+
   const cashierAInput = document.getElementById('cashierA-input');
   const cashierBInput = document.getElementById('cashierB-input');
-  const cashierAEstimate = document.getElementById('cashierA-estimate');
-  const cashierBEstimate = document.getElementById('cashierB-estimate');
+
+  const cashierAEstimates = document.getElementById('cashierA-estimates');
+  const cashierBEstimates = document.getElementById('cashierB-estimates');
+
+  let cashierASelectedEst = null;
+  let cashierBSelectedEst = null;
+
+  cashierAEstimates.addEventListener('click', (e) => {
+    if (e.target.dataset.est) {
+      cashierASelectedEst = parseInt(e.target.dataset.est,10);
+      // Highlight selected button
+      Array.from(cashierAEstimates.children).forEach(btn => btn.style.background = '#9C1B1B');
+      e.target.style.background = '#4CAF50';
+    }
+  });
+  cashierBEstimates.addEventListener('click', (e) => {
+    if (e.target.dataset.est) {
+      cashierBSelectedEst = parseInt(e.target.dataset.est,10);
+      // Highlight selected button
+      Array.from(cashierBEstimates.children).forEach(btn => btn.style.background = '#9C1B1B');
+      e.target.style.background = '#4CAF50';
+    }
+  });
+
   const cashierAAdd = document.getElementById('cashierA-add');
   const cashierBAdd = document.getElementById('cashierB-add');
-
   const clearPrepBtn = document.getElementById('clear-prep');
   const clearReadyBtn = document.getElementById('clear-ready');
 
@@ -226,6 +272,7 @@
 
       const topLine = document.createElement('div');
       topLine.className = 'order-top';
+
       const span = document.createElement('span');
       span.textContent = order.id;
 
@@ -249,8 +296,9 @@
       topLine.appendChild(buttonsDiv);
 
       const detail = document.createElement('div');
-      detail.className = 'detail-line';
       detail.textContent = `Estimate: ${order.estimate} min`;
+      detail.style.fontSize = '0.9em';
+      detail.style.color = '#333';
 
       div.appendChild(topLine);
       div.appendChild(detail);
@@ -263,6 +311,7 @@
 
       const topLine = document.createElement('div');
       topLine.className = 'order-top';
+
       const span = document.createElement('span');
       span.textContent = order.id;
 
@@ -284,50 +333,47 @@
 
       topLine.appendChild(span);
       topLine.appendChild(buttonsDiv);
-
-      // On control side, just show estimate again (no countdown here)
-      const detail = document.createElement('div');
-      detail.className = 'detail-line';
-      detail.textContent = `Estimate: ${order.estimate} min (Countdown runs on display)`;
-
       div.appendChild(topLine);
-      div.appendChild(detail);
       readyList.appendChild(div);
     });
   }
 
   function addAOrder() {
     const number = cashierAInput.value.trim().replace(/\D/g,'');
-    const est = parseInt(cashierAEstimate.value.trim(),10);
-    if (number && est > 0) {
-      const order = {id: 'A' + number, estimate: est, movedToReadyAt: null};
-      preparationQueue.push(order);
-      enforceLimit(preparationQueue);
-      cashierAInput.value = '';
-      cashierAEstimate.value = '';
-      saveQueues();
-      renderQueues();
+    if (!number || !cashierASelectedEst) {
+      alert('Please enter a queue number and select an estimate time for Cashier A.');
+      return;
     }
+    const order = {id: 'A' + number, estimate: cashierASelectedEst, addedAt: Date.now(), movedToReadyAt: null};
+    preparationQueue.push(order);
+    enforceLimit(preparationQueue);
+    cashierAInput.value = '';
+    // Reset selection?
+    cashierASelectedEst = null;
+    Array.from(cashierAEstimates.children).forEach(btn => btn.style.background = '#9C1B1B');
+    saveQueues();
+    renderQueues();
   }
 
   function addBOrder() {
     const number = cashierBInput.value.trim().replace(/\D/g,'');
-    const est = parseInt(cashierBEstimate.value.trim(),10);
-    if (number && est > 0) {
-      const order = {id: 'B' + number, estimate: est, movedToReadyAt: null};
-      preparationQueue.push(order);
-      enforceLimit(preparationQueue);
-      cashierBInput.value = '';
-      cashierBEstimate.value = '';
-      saveQueues();
-      renderQueues();
+    if (!number || !cashierBSelectedEst) {
+      alert('Please enter a queue number and select an estimate time for Cashier B.');
+      return;
     }
+    const order = {id: 'B' + number, estimate: cashierBSelectedEst, addedAt: Date.now(), movedToReadyAt: null};
+    preparationQueue.push(order);
+    enforceLimit(preparationQueue);
+    cashierBInput.value = '';
+    cashierBSelectedEst = null;
+    Array.from(cashierBEstimates.children).forEach(btn => btn.style.background = '#9C1B1B');
+    saveQueues();
+    renderQueues();
   }
 
   function markReady(index) {
     const order = preparationQueue[index];
     preparationQueue.splice(index, 1);
-    // Start countdown by setting movedToReadyAt
     order.movedToReadyAt = Date.now();
     readyQueue.push(order);
     enforceLimit(readyQueue);
@@ -350,7 +396,8 @@
   function moveBackToPreparation(index) {
     const order = readyQueue[index];
     readyQueue.splice(index, 1);
-    order.movedToReadyAt = null; // reset countdown since going back
+    order.movedToReadyAt = null;
+    order.addedAt = Date.now();
     preparationQueue.push(order);
     enforceLimit(preparationQueue);
     saveQueues();
