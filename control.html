@@ -269,9 +269,52 @@
   </div>
 </div>
 
-<script>
-  let preparationQueue = JSON.parse(localStorage.getItem('preparationQueue') || '[]');
-  let readyQueue = JSON.parse(localStorage.getItem('readyQueue') || '[]');
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAl4rWQWxChvKFWrh_WzjEzcqwrxk9TxB8",
+    authDomain: "haroy-queue.firebaseapp.com",
+    projectId: "haroy-queue",
+    storageBucket: "haroy-queue.firebasestorage.app",
+    messagingSenderId: "248712815428",
+    appId: "1:248712815428:web:7ce7e388c73cebc7af2d11",
+    measurementId: "G-P7B6H2C3PN",
+    databaseURL: "https://haroy-queue-default-rtdb.firebaseio.com/"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  let preparationQueue = [];
+  let readyQueue = [];
+
+  // Listen to Firebase changes so control is always up-to-date
+  onValue(ref(db, 'queues'), (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      preparationQueue = data.preparationQueue || [];
+      readyQueue = data.readyQueue || [];
+    } else {
+      preparationQueue = [];
+      readyQueue = [];
+    }
+    renderQueues();
+  });
+
+  function saveQueues() {
+    set(ref(db, 'queues'), {
+      preparationQueue: preparationQueue,
+      readyQueue: readyQueue
+    });
+  }
+
+  function enforceLimit(queue) {
+    while (queue.length > 50) {
+      queue.shift();
+    }
+  }
 
   const prepList = document.getElementById('prep-list');
   const readyList = document.getElementById('ready-list');
@@ -312,6 +355,7 @@
       aNumberDisplay.textContent = val;
     }
   });
+
   aIncrement.addEventListener('click', () => {
     let val = parseInt(aNumberInput.value,10);
     if (val < 999) {
@@ -329,6 +373,7 @@
       bNumberDisplay.textContent = val;
     }
   });
+
   bIncrement.addEventListener('click', () => {
     let val = parseInt(bNumberInput.value,10);
     if (val < 999) {
@@ -354,16 +399,73 @@
     }
   });
 
-  function saveQueues() {
-    localStorage.setItem('preparationQueue', JSON.stringify(preparationQueue));
-    localStorage.setItem('readyQueue', JSON.stringify(readyQueue));
+  function addAOrder() {
+    const number = parseInt(aNumberInput.value,10);
+    if (!number || !aSelectedEstimate) {
+      alert('Please select a number and an estimate time for Cashier A.');
+      return;
+    }
+    const order = {id: 'A' + number, estimate: aSelectedEstimate, addedAt: Date.now(), movedToReadyAt: null};
+    preparationQueue.push(order);
+    enforceLimit(preparationQueue);
+    saveQueues();
+    // no renderQueues() needed here because onValue listener will handle it
   }
 
-  function enforceLimit(queue) {
-    while (queue.length > 50) {
-      queue.shift();
+  function addBOrder() {
+    const number = parseInt(bNumberInput.value,10);
+    if (!number || !bSelectedEstimate) {
+      alert('Please select a number and an estimate time for Cashier B.');
+      return;
     }
+    const order = {id: 'B' + number, estimate: bSelectedEstimate, addedAt: Date.now(), movedToReadyAt: null};
+    preparationQueue.push(order);
+    enforceLimit(preparationQueue);
+    saveQueues();
   }
+
+  addAOrderBtn.addEventListener('click', addAOrder);
+  addBOrderBtn.addEventListener('click', addBOrder);
+
+  function markReady(index) {
+    const order = preparationQueue[index];
+    preparationQueue.splice(index, 1);
+    order.movedToReadyAt = Date.now();
+    readyQueue.push(order);
+    enforceLimit(readyQueue);
+    saveQueues();
+  }
+
+  function removeOrderFromPreparation(index) {
+    preparationQueue.splice(index, 1);
+    saveQueues();
+  }
+
+  function removeOrderFromReady(index) {
+    readyQueue.splice(index, 1);
+    saveQueues();
+  }
+
+  function moveBackToPreparation(index) {
+    const order = readyQueue[index];
+    readyQueue.splice(index, 1);
+    order.movedToReadyAt = null;
+    order.addedAt = Date.now();
+    preparationQueue.push(order);
+    enforceLimit(preparationQueue);
+    saveQueues();
+  }
+
+  const clearPrepBtn = document.getElementById('clear-prep');
+  const clearReadyBtn = document.getElementById('clear-ready');
+  clearPrepBtn.addEventListener('click', () => {
+    preparationQueue = [];
+    saveQueues();
+  });
+  clearReadyBtn.addEventListener('click', () => {
+    readyQueue = [];
+    saveQueues();
+  });
 
   function renderQueues() {
     prepList.innerHTML = '';
@@ -441,85 +543,7 @@
       readyList.appendChild(div);
     });
   }
-
-  function addAOrder() {
-    const number = parseInt(aNumberInput.value,10);
-    if (!number || !aSelectedEstimate) {
-      alert('Please select a number and an estimate time for Cashier A.');
-      return;
-    }
-    const order = {id: 'A' + number, estimate: aSelectedEstimate, addedAt: Date.now(), movedToReadyAt: null};
-    preparationQueue.push(order);
-    enforceLimit(preparationQueue);
-    saveQueues();
-    renderQueues();
-    // Do not reset the number or estimate
-  }
-
-  function addBOrder() {
-    const number = parseInt(bNumberInput.value,10);
-    if (!number || !bSelectedEstimate) {
-      alert('Please select a number and an estimate time for Cashier B.');
-      return;
-    }
-    const order = {id: 'B' + number, estimate: bSelectedEstimate, addedAt: Date.now(), movedToReadyAt: null};
-    preparationQueue.push(order);
-    enforceLimit(preparationQueue);
-    saveQueues();
-    renderQueues();
-    // Do not reset the number or estimate
-  }
-
-  addAOrderBtn.addEventListener('click', addAOrder);
-  addBOrderBtn.addEventListener('click', addBOrder);
-
-  function markReady(index) {
-    const order = preparationQueue[index];
-    preparationQueue.splice(index, 1);
-    order.movedToReadyAt = Date.now();
-    readyQueue.push(order);
-    enforceLimit(readyQueue);
-    saveQueues();
-    renderQueues();
-  }
-
-  function removeOrderFromPreparation(index) {
-    preparationQueue.splice(index, 1);
-    saveQueues();
-    renderQueues();
-  }
-
-  function removeOrderFromReady(index) {
-    readyQueue.splice(index, 1);
-    saveQueues();
-    renderQueues();
-  }
-
-  function moveBackToPreparation(index) {
-    const order = readyQueue[index];
-    readyQueue.splice(index, 1);
-    order.movedToReadyAt = null;
-    order.addedAt = Date.now();
-    preparationQueue.push(order);
-    enforceLimit(preparationQueue);
-    saveQueues();
-    renderQueues();
-  }
-
-  const clearPrepBtn = document.getElementById('clear-prep');
-  const clearReadyBtn = document.getElementById('clear-ready');
-  clearPrepBtn.addEventListener('click', () => {
-    preparationQueue = [];
-    saveQueues();
-    renderQueues();
-  });
-  clearReadyBtn.addEventListener('click', () => {
-    readyQueue = [];
-    saveQueues();
-    renderQueues();
-  });
-
-  renderQueues();
 </script>
+
 </body>
 </html>
